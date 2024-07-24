@@ -120,7 +120,7 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-# .env
+.env
 .venv
 env/
 venv/
@@ -160,3 +160,4 @@ cython_debug/
 #.idea/
 spotify-video
 data.json
+.env
