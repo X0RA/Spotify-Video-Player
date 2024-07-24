@@ -50,12 +50,44 @@ class SpotifyPlayer:
                 "track_id": track['item']['id']
             }
         return None
+    
+    def did_scrub(self, track_update):
+        """Determines if the user has scrubbed through the track."""
+        current_time = time.time()
+        
+        # Extract old and new update times and progress
+        old_update_time = self.currentlyPlaying['time_of_update']
+        old_seek_time = self.currentlyPlaying['progress_ms'] / 1000  
+        new_update_time = track_update['time_of_update']
+        new_seek_time = track_update['progress_ms'] / 1000 
+        
+        # Calculate the expected new seek time based on old seek time and elapsed time
+        time_elapsed = new_update_time - old_update_time
+        expected_seek_time = old_seek_time + time_elapsed
+        
+        # Determine the actual difference in seek time
+        time_difference = new_seek_time - expected_seek_time
+        
+        # Threshold for determining a skip (this can be adjusted as needed)
+        skip_threshold = 5  # seconds
+        
+        # Check if the difference exceeds the threshold, indicating a skip
+        if time_difference > skip_threshold or time_difference < -skip_threshold:
+            return True
+        else:
+            return False
+
+        
 
     def update_currently_playing(self):
         """Continuously monitors the currently playing track and notifies listeners of changes."""
         while True:
             current_track = self.get_current_track()
             if current_track:
+                if self.currentlyPlaying and current_track['track_id'] == self.currentlyPlaying['track_id'] and self.did_scrub(current_track):
+                    self.currentlyPlaying['progress_ms'] = current_track['progress_ms']
+                    self.currentlyPlaying['time_of_update'] = current_track['time_of_update']
+                    self.notify_listeners('track_scrub')
                 track_id = current_track['track_id']
                 if not self.currentlyPlaying or track_id != self.currentlyPlaying['track_id']:
                     self.currentlyPlaying = current_track

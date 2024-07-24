@@ -1,13 +1,17 @@
 import sys
-import os.path
+import os
 import vlc
 from PyQt5 import QtWidgets, QtGui, QtCore
+from dotenv import load_dotenv
 
 class MusicVideoPlayer(QtWidgets.QMainWindow):
     """A simple music video player using VLC and PyQt5."""
     media_loaded = QtCore.pyqtSignal(str)
 
     def __init__(self, master=None):
+        load_dotenv()
+        self.start_muted = os.getenv('START_MUTED', 'False').lower() in ('true', '1', 't')
+        self.start_fullscreen = os.getenv('START_FULLSCREEN', 'False').lower() in ('true', '1', 't')
         super().__init__(master)
         self.setWindowTitle("Music Video Player")
         self.instance = vlc.Instance()
@@ -15,7 +19,19 @@ class MusicVideoPlayer(QtWidgets.QMainWindow):
         self.isPaused = False
         self.media = None
         self._create_ui()
-        self.media_loaded.connect(self._on_media_loaded)  
+        self.media_name = None
+        self.media_loaded.connect(self._on_media_loaded)
+        self.shortcut_fullscreen = QtWidgets.QShortcut(QtGui.QKeySequence("F"), self)
+        self.shortcut_fullscreen.activated.connect(self.make_fullscreen)
+        self.shortcut_mute = QtWidgets.QShortcut(QtGui.QKeySequence("M"), self)
+        self.shortcut_mute.activated.connect(self.mute)
+        if self.start_muted:
+            self.mute()
+
+        self.show()
+        #TODO how is the fullscreening so broken on osx 
+        # if self.start_fullscreen:
+        #     QtCore.QTimer.singleShot(100, self.make_fullscreen)
 
     def _create_ui(self):
         """Creates the user interface elements."""
@@ -62,9 +78,9 @@ class MusicVideoPlayer(QtWidgets.QMainWindow):
     def toggle_play_pause(self):
         """Toggles between playing and pausing the media."""
         if self.mediaplayer.is_playing():
-            self.pause()  # Assuming this is a method that correctly pauses the media.
+            self.pause()
         else:
-            self.play()  # Assuming this is a method that correctly plays the media.
+            self.play()
     
     def play(self):
         """Plays the currently loaded media."""
@@ -72,7 +88,23 @@ class MusicVideoPlayer(QtWidgets.QMainWindow):
             self.mediaplayer.play()
             self.isPaused = False
             self.update_ui()
-    
+
+    def mute(self):
+        """Mutes the audio."""
+        self.mediaplayer.audio_toggle_mute()
+
+    def seek(self, time):
+        """Seeks the media to the specified time in milliseconds."""
+        time = time / self.media.get_duration()
+        self.mediaplayer.set_position(time)
+
+    def make_fullscreen(self):
+        """Toggles fullscreen mode."""
+        if self.isFullScreen():
+            self.showNormal()
+        else:
+            self.showFullScreen()
+
     def pause(self):
         """Pauses the currently playing media."""
         if self.mediaplayer.is_playing():
@@ -80,7 +112,7 @@ class MusicVideoPlayer(QtWidgets.QMainWindow):
             self.isPaused = True
             self.update_ui()
 
-    def play_media(self, media_path: str):
+    def play_media(self, media_path: str, song_name: str = None):
         """
         Plays a media file from a given path or URL.
 
@@ -89,6 +121,10 @@ class MusicVideoPlayer(QtWidgets.QMainWindow):
         """
         if not media_path:
             return
+        
+        if song_name:
+            self.media_name = song_name
+            self.setWindowTitle(f"Music Video Player - {song_name}")
 
         try:
             media_path = media_path if media_path.startswith('http') else os.path.expanduser(media_path)
@@ -121,10 +157,10 @@ class MusicVideoPlayer(QtWidgets.QMainWindow):
 
     def update_ui(self):
         """
-        Updates the user interface elements.  Override this method to add custom UI updates.
+        Updates the user interface elements. Override this method to add custom UI updates.
         """
+        base_title = f"{self.media_name}" if self.media_name else "Music Video Player"
         if self.isPaused:
-            self.setWindowTitle("Music Video Player (Paused)")
+            self.setWindowTitle(f"{base_title} (Paused)")
         else:
-            self.setWindowTitle("Music Video Player")
-        pass
+            self.setWindowTitle(base_title)
