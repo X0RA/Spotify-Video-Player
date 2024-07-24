@@ -1,7 +1,7 @@
 import sys
 import threading
 import time
-from PyQt5 import QtWidgets
+from PyQt5 import QtWidgets, QtCore
 from SpotifyPlayer import SpotifyPlayer
 from YoutubeSearcher import YoutubeSearcher
 from VideoPlayer import MusicVideoPlayer
@@ -22,6 +22,8 @@ class MyListener:
             self.video_player.pause()
         else:
             print(f"Received Spotify event: {event_type}")
+            
+    
 
     def handle_new_track(self, track: dict):
         """Searches for a YouTube video for the new track and plays it"""
@@ -31,7 +33,16 @@ class MyListener:
             direct_url = self.youtube_searcher.get_video_stream_url(search_result['url'])
             if direct_url:
                 print("Playing video:", direct_url)
-                self.video_player.play_media(direct_url)
+                media_name = f"{track['artists'][0]} - {track['track']}"
+                self.video_player.play_media(direct_url, media_name)
+                #TODO: make this an event listener instead of a sleep
+                time.sleep(5)
+                if self.video_player.mediaplayer.is_playing() and self.video_player.media_name == media_name:
+                    current_time = time.time()
+                    track_update_time = track['time_of_update']
+                    seek_time = track['progress_ms'] / 1000
+                    seek_to_time = max(0, current_time - track_update_time + seek_time)
+                    self.video_player.seek(int(seek_to_time * 1000))
             else:
                 print("Error: Could not get a direct video URL.")
         else:
@@ -39,20 +50,18 @@ class MyListener:
 
 
 def run_spotify_listener(listener: MyListener):
-    """
-    Function to be run in a separate thread for continuously listening to Spotify events.
-    """
+    """Function to be run in a separate thread for continuously listening to Spotify events"""
     sp = SpotifyPlayer()
     sp.add_listener(listener)
     try:
         while True:
-            time.sleep(1)  # Poll Spotify every second
+            time.sleep(1)
     except KeyboardInterrupt:
         print("Exiting Spotify listener...")
     finally:
         # Clean up:
         sp.remove_listener(listener)
-        del sp  # Explicitly delete the SpotifyPlayer object
+        del sp
 
 
 def main():
