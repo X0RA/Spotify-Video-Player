@@ -161,3 +161,5 @@ cython_debug/
 spotify-video
 data.json
 .env
+/__pycache__
+/vidplay

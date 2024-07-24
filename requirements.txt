@@ -1,0 +1,5 @@
+python-dotenv
+spotipy
+PyQt5
+yt-dlp
+python-vlc
