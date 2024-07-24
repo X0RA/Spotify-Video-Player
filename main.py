@@ -20,10 +20,20 @@ class MyListener:
             self.video_player.play()
         if event_type == 'pause':
             self.video_player.pause()
+        if event_type == 'track_scrub' and currently_playing:
+            self.handle_track_scrub(currently_playing)
         else:
             print(f"Received Spotify event: {event_type}")
             
     
+    def handle_track_scrub(self, track_update: dict):
+        """Handles a track scrub event by seeking the video player to the new position"""
+        if track_update:
+            current_time = time.time()
+            track_update_time = track_update['time_of_update']
+            seek_time = track_update['progress_ms'] / 1000
+            seek_to_time = max(0, current_time - track_update_time + seek_time)
+            self.video_player.seek(int(seek_to_time * 1000))
 
     def handle_new_track(self, track: dict):
         """Searches for a YouTube video for the new track and plays it"""

@@ -1,5 +1,5 @@
 import sys
-import os.path
+import os
 import vlc
 from PyQt5 import QtWidgets, QtGui, QtCore
 from dotenv import load_dotenv
@@ -10,8 +10,8 @@ class MusicVideoPlayer(QtWidgets.QMainWindow):
 
     def __init__(self, master=None):
         load_dotenv()
-        self.start_muted= os.getenv('START_MUTED', False)
-        self.start_fullscreen = os.getenv('START_FULLSCREEN', False)
+        self.start_muted = os.getenv('START_MUTED', 'False').lower() in ('true', '1', 't')
+        self.start_fullscreen = os.getenv('START_FULLSCREEN', 'False').lower() in ('true', '1', 't')
         super().__init__(master)
         self.setWindowTitle("Music Video Player")
         self.instance = vlc.Instance()
@@ -23,10 +23,15 @@ class MusicVideoPlayer(QtWidgets.QMainWindow):
         self.media_loaded.connect(self._on_media_loaded)
         self.shortcut_fullscreen = QtWidgets.QShortcut(QtGui.QKeySequence("F"), self)
         self.shortcut_fullscreen.activated.connect(self.make_fullscreen)
-        self.shortcut_mtue = QtWidgets.QShortcut(QtGui.QKeySequence("M"), self)
-        self.shortcut_mtue.activated.connect(self.mute)
+        self.shortcut_mute = QtWidgets.QShortcut(QtGui.QKeySequence("M"), self)
+        self.shortcut_mute.activated.connect(self.mute)
         if self.start_muted:
             self.mute()
+
+        self.show()
+        #TODO how is the fullscreening so broken on osx 
+        # if self.start_fullscreen:
+        #     QtCore.QTimer.singleShot(100, self.make_fullscreen)
 
     def _create_ui(self):
         """Creates the user interface elements."""
@@ -73,9 +78,9 @@ class MusicVideoPlayer(QtWidgets.QMainWindow):
     def toggle_play_pause(self):
         """Toggles between playing and pausing the media."""
         if self.mediaplayer.is_playing():
-            self.pause()  # Assuming this is a method that correctly pauses the media.
+            self.pause()
         else:
-            self.play()  # Assuming this is a method that correctly plays the media.
+            self.play()
     
     def play(self):
         """Plays the currently loaded media."""
@@ -89,7 +94,7 @@ class MusicVideoPlayer(QtWidgets.QMainWindow):
         self.mediaplayer.audio_toggle_mute()
 
     def seek(self, time):
-        """ Seeks the media to the specified time in milliseconds. """
+        """Seeks the media to the specified time in milliseconds."""
         time = time / self.media.get_duration()
         self.mediaplayer.set_position(time)
 
@@ -116,9 +121,6 @@ class MusicVideoPlayer(QtWidgets.QMainWindow):
         """
         if not media_path:
             return
-        
-        if not self.media and self.start_fullscreen:
-            self.showFullScreen()
         
         if song_name:
             self.media_name = song_name
