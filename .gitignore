@@ -163,3 +163,9 @@ data.json
 .env
 /__pycache__
 /vidplay
+/stream_info.json
+/TestSpotifyPlayer.py
+/TestVideoPlayer.py
+/TestYoutubeSearch.py
+/youtube_search_results.json
+/track_info.json

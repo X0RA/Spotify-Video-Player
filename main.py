@@ -7,60 +7,45 @@ from YoutubeSearcher import YoutubeSearcher
 from VideoPlayer import MusicVideoPlayer
 
 class MyListener:
-    """Listens to SpotifyPlayer events and triggers corresponding actions in the video player."""
     def __init__(self, youtube_searcher: YoutubeSearcher, video_player: MusicVideoPlayer):
         self.youtube_searcher = youtube_searcher
         self.video_player = video_player
 
     def notify(self, event_type: str, currently_playing: dict):
-        """Handles SpotifyPlayer events: track update, play, or pause"""
         if event_type == 'track_update' and currently_playing:
             self.handle_new_track(currently_playing)
-        if event_type == 'play':
-            self.video_player.play()
-        if event_type == 'pause':
-            self.video_player.pause()
-        if event_type == 'track_scrub' and currently_playing:
+        elif event_type in ['play', 'pause']:
+            getattr(self.video_player, event_type)()
+        elif event_type == 'track_scrub' and currently_playing:
             self.handle_track_scrub(currently_playing)
         else:
             print(f"Received Spotify event: {event_type}")
-            
-    
+
     def handle_track_scrub(self, track_update: dict):
-        """Handles a track scrub event by seeking the video player to the new position"""
         if track_update:
+            print(f"Scrubbing to {track_update['progress_ms']} ms")
             current_time = time.time()
-            track_update_time = track_update['time_of_update']
             seek_time = track_update['progress_ms'] / 1000
-            seek_to_time = max(0, current_time - track_update_time + seek_time)
+            seek_to_time = max(0, current_time - track_update['time_of_update'] + seek_time)
             self.video_player.seek(int(seek_to_time * 1000))
 
     def handle_new_track(self, track: dict):
-        """Searches for a YouTube video for the new track and plays it"""
-        print("Searching YouTube for:", track['track'], "by", track['artists'])
+        print(f"Searching YouTube for: {track['track']} by {track['artists']}")
         search_result = self.youtube_searcher.search(track, rank=True)
         if search_result:
-            direct_url = self.youtube_searcher.get_video_stream_url(search_result['url'])
-            if direct_url:
-                print("Playing video:", direct_url)
+            video_stream, audio_stream, combined_stream = self.youtube_searcher.get_video_streams(search_result['url'])
+            if combined_stream:
+                print(f"got combined stream")
                 media_name = f"{track['artists'][0]} - {track['track']}"
-                self.video_player.play_media(direct_url, media_name)
-                #TODO: make this an event listener instead of a sleep
-                time.sleep(5)
-                if self.video_player.mediaplayer.is_playing() and self.video_player.media_name == media_name:
-                    current_time = time.time()
-                    track_update_time = track['time_of_update']
-                    seek_time = track['progress_ms'] / 1000
-                    seek_to_time = max(0, current_time - track_update_time + seek_time)
-                    self.video_player.seek(int(seek_to_time * 1000))
+                self.video_player.play_media(combined_stream, media_name)
+            if video_stream and audio_stream and not combined_stream:
+                self.video_player.play_streams((video_stream, audio_stream))
             else:
-                print("Error: Could not get a direct video URL.")
+                print("Error: No streams?!.")
         else:
             print("Error: Could not find a suitable YouTube video.")
 
-
 def run_spotify_listener(listener: MyListener):
-    """Function to be run in a separate thread for continuously listening to Spotify events"""
     sp = SpotifyPlayer()
     sp.add_listener(listener)
     try:
@@ -69,15 +54,9 @@ def run_spotify_listener(listener: MyListener):
     except KeyboardInterrupt:
         print("Exiting Spotify listener...")
     finally:
-        # Clean up:
         sp.remove_listener(listener)
-        del sp
-
 
 def main():
-    """
-    Main entry point for the application. Sets up the UI, initializes objects, and starts threads.
-    """
     app = QtWidgets.QApplication(sys.argv)
     video_player = MusicVideoPlayer()
     video_player.show()
@@ -86,15 +65,14 @@ def main():
     listener = MyListener(youtube_searcher, video_player)
 
     try:
-        listener_thread = threading.Thread(target=run_spotify_listener, args=(listener,), daemon=True)
-        listener_thread.start()
+        threading.Thread(target=run_spotify_listener, args=(listener,), daemon=True).start()
         sys.exit(app.exec_())
-    except Exception as e:  
+    except Exception as e:
         print(f"An error occurred: {e}")
     finally:
-        del youtube_searcher  
+        del youtube_searcher
         del video_player
-        app.quit() 
+        app.quit()
 
 if __name__ == "__main__":
     main()
