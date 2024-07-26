@@ -3,11 +3,12 @@ import os
 import vlc
 from PyQt5 import QtWidgets, QtGui, QtCore
 from dotenv import load_dotenv
+import time
 
 class MusicVideoPlayer(QtWidgets.QMainWindow):
     """A music video player using VLC and PyQt5 with support for separate video and audio streams."""
     media_loaded = QtCore.pyqtSignal(str)
-    seek_complete = QtCore.pyqtSignal()  # Correctly define the signal here
+    seek_complete = QtCore.pyqtSignal()
 
     def __init__(self, master=None):
         super().__init__(master)
@@ -31,6 +32,10 @@ class MusicVideoPlayer(QtWidgets.QMainWindow):
         self.video_media = None
         self.audio_media = None
         self.media_name = None
+        self.paused_before_seek = False
+        self.seek_timer = QtCore.QTimer()
+        self.seek_timer.timeout.connect(self._check_seek_complete)
+        self.seek_start_time = None
 
     def _create_ui(self):
         self.setWindowTitle("Music Video Player")
@@ -83,58 +88,106 @@ class MusicVideoPlayer(QtWidgets.QMainWindow):
         return palette
 
     def toggle_play_pause(self):
-        if self.video_player.is_playing():
+        if not self.isPaused:
             self.pause()
         else:
             self.play()
 
     def play(self):
-        if not self.video_player.is_playing() and not self.is_seeking:
-            self.video_player.play()
+        self.video_player.play()
+        if self.audio_media:
             self.audio_player.play()
-            self.isPaused = False
-            self.update_ui()
+        self.isPaused = False
+        self.synchronize_players()
+        self.update_ui()
 
     def pause(self):
-        if self.video_player.is_playing():
-            self.video_player.pause()
+        self.video_player.pause()
+        if self.audio_media:
             self.audio_player.pause()
-            self.isPaused = True
-            self.update_ui()
-
+        self.isPaused = True
+        # self.synchronize_players()
+        self.update_ui()
+        
+    def synchronize_players(self):
+        if self.audio_media:
+            video_time = self.video_player.get_time()
+            audio_time = self.audio_player.get_time()
+            if abs(video_time - audio_time) > 50: 
+                self.audio_player.set_time(video_time)
+        
     def toggle_mute(self):
         self.audio_player.audio_toggle_mute()
 
+    def get_buffered_amount(self):
+        video_buffered = 0
+        audio_buffered = 0
+        
+        if self.video_player:
+            video_stats = self.video_player.get_stats()
+            video_demux_read_bytes = video_stats.get('demux_read_bytes', 0)
+            video_input_bitrate = video_stats.get('input_bitrate', 0)
+            
+            if video_input_bitrate > 0:
+                video_buffered = (video_demux_read_bytes * 8) / (video_input_bitrate * 1000) * 1000
+
+        if self.audio_media and self.audio_player:
+            audio_stats = self.audio_player.get_stats()
+            audio_demux_read_bytes = audio_stats.get('demux_read_bytes', 0)
+            audio_input_bitrate = audio_stats.get('input_bitrate', 0)
+            
+            if audio_input_bitrate > 0:
+                audio_buffered = (audio_demux_read_bytes * 8) / (audio_input_bitrate * 1000) * 1000
+
+        return (video_buffered, audio_buffered if self.audio_media else None)
 
     def seek(self, time_ms):
-        if self.video_media and self.audio_media:
+        if self.video_media:
             self.is_seeking = True
-            position = time_ms / self.video_media.get_duration()
+            self.paused_before_seek = self.isPaused
+            self.target_seek_time = time_ms
+            self.video_player.set_time(time_ms)
+            if self.audio_media:
+                self.audio_player.set_time(time_ms)
             
-            # Pause both players
-            self.video_player.pause()
-            self.audio_player.pause()
-            
-            # Set position for both players
-            self.video_player.set_position(position)
-            self.audio_player.set_position(position)
-            
-            # Use QTimer to check seek completion
-            QtCore.QTimer.singleShot(50, self._check_seek_complete)
+            self.seek_start_time = time.time()
+            QtCore.QTimer.singleShot(200, self._check_seek_complete)
+        else:
+            print("Error: No media loaded.")
 
 
     def _check_seek_complete(self):
-        if self.video_player.is_playing() or self.video_player.get_state() == vlc.State.Paused:
+        current_video_time = self.video_player.get_time()
+        video_buffered, audio_buffered = self.get_buffered_amount()
+        
+        video_seek_complete = abs(current_video_time - self.target_seek_time) < 500 and video_buffered > 2000
+        audio_seek_complete = True  # Default to True if there's no audio
+
+        if self.audio_media:
+            current_audio_time = self.audio_player.get_time()
+            audio_seek_complete = abs(current_audio_time - self.target_seek_time) < 500 and audio_buffered > 2000
+
+        if video_seek_complete and audio_seek_complete:
+            if self.video_player.get_state() in [vlc.State.Playing, vlc.State.Paused]:
+                self.seek_complete.emit()
+                return
+
+        if time.time() - self.seek_start_time > 10:  # 10 second timeout
+            print("Seek timeout")
             self.seek_complete.emit()
         else:
-            QtCore.QTimer.singleShot(50, self._check_seek_complete)
+            QtCore.QTimer.singleShot(100, self._check_seek_complete)
 
     @QtCore.pyqtSlot()
     def _on_seek_complete(self):
         self.is_seeking = False
-        if not self.isPaused:
-            self.video_player.play()
-            self.audio_player.play()
+        if not self.paused_before_seek:
+            self.play()
+        else:
+            self.pause()
+        self.paused_before_seek = None
+        self.synchronize_players()  # Add this line to ensure synchronization after seeking
+        self.update_ui()
 
     def toggle_fullscreen(self):
         if self.isFullScreen():
@@ -149,19 +202,15 @@ class MusicVideoPlayer(QtWidgets.QMainWindow):
             print("Both video and audio streams must be provided.")
             return
 
-        # Create media for video and audio streams
         self.video_media = self.instance.media_new(video_stream)
         self.audio_media = self.instance.media_new(audio_stream)
 
-        # Set hardware acceleration
         self.video_media.add_option('avcodec-hw=d3d11va')
         self.audio_media.add_option('avcodec-hw=d3d11va')
 
-        # Set the media to the respective players
         self.video_player.set_media(self.video_media)
         self.audio_player.set_media(self.audio_media)
 
-        # Play the media
         try:
             self.video_player.play()
             self.audio_player.play()
@@ -174,8 +223,8 @@ class MusicVideoPlayer(QtWidgets.QMainWindow):
         try:
             self._set_platform_specific_window()
             self.video_player.play()
-            self.audio_player.play()
-            self.audio_player.audio_set_volume(100)
+            if self.audio_media:
+                self.audio_player.play()
             self.timer.start()
         except Exception as e:
             print(f"Error in _on_media_loaded: {e}")
@@ -191,6 +240,7 @@ class MusicVideoPlayer(QtWidgets.QMainWindow):
             media = self.instance.media_new(media_path)
             self.video_player.set_media(media)
             self.video_media = media
+            self.audio_media = None  # Reset audio_media for combined streams
             self.video_media.parse()
             self.media_loaded.emit(media_path)
         except Exception as e:
@@ -210,11 +260,21 @@ class MusicVideoPlayer(QtWidgets.QMainWindow):
         if not QtCore.QThread.currentThread() == QtCore.QCoreApplication.instance().thread():
             return
         base_title = f"{self.media_name}" if self.media_name else "Music Video Player"
-        status = "Paused" if self.isPaused else "Seeking" if self.is_seeking else ""
-        self.setWindowTitle(f"{base_title} ({status})" if status else base_title)
-        if self.video_player.get_state() == vlc.State.Error or self.audio_player.get_state() == vlc.State.Error:
-            print("Playback error detected. Attempting to reset...")
+        status = "Paused" if self.isPaused else "Seeking" if self.is_seeking else "Playing"
+        self.setWindowTitle(f"{base_title} ({status})")
+        
+        video_state = self.video_player.get_state()
+        if video_state == vlc.State.Ended:
+            self.isPaused = True
+        elif video_state in [vlc.State.Playing, vlc.State.Paused]:
+            self.isPaused = (video_state == vlc.State.Paused)
+        
+        if video_state == vlc.State.Error:
+            print("Video playback error detected. Attempting to reset...")
             self.video_player.stop()
-            self.audio_player.stop()
             self.video_player.play()
+        
+        if self.audio_media and self.audio_player.get_state() == vlc.State.Error:
+            print("Audio playback error detected. Attempting to reset...")
+            self.audio_player.stop()
             self.audio_player.play()

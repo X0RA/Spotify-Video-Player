@@ -13,10 +13,16 @@ class MyListener:
 
     def notify(self, event_type: str, currently_playing: dict):
         if event_type == 'track_update' and currently_playing:
+            print(f"Received Spotify event: {event_type}")
             self.handle_new_track(currently_playing)
-        elif event_type in ['play', 'pause']:
-            getattr(self.video_player, event_type)()
+        elif event_type == 'play':
+            print(f"Received Spotify event: {event_type}")
+            self.video_player.play()
+        elif event_type == 'pause':
+            print(f"Received Spotify event: {event_type}")
+            self.video_player.pause()
         elif event_type == 'track_scrub' and currently_playing:
+            print(f"Received Spotify event: {event_type}")
             self.handle_track_scrub(currently_playing)
         else:
             print(f"Received Spotify event: {event_type}")
@@ -34,14 +40,15 @@ class MyListener:
         search_result = self.youtube_searcher.search(track, rank=True)
         if search_result:
             video_stream, audio_stream, combined_stream = self.youtube_searcher.get_video_streams(search_result['url'])
-            if combined_stream:
-                print(f"got combined stream")
+            if not combined_stream:
+                print("Playing combined stream")
                 media_name = f"{track['artists'][0]} - {track['track']}"
                 self.video_player.play_media(combined_stream, media_name)
-            if video_stream and audio_stream and not combined_stream:
+            elif video_stream and audio_stream:
+                print("Playing separate video and audio streams")
                 self.video_player.play_streams((video_stream, audio_stream))
             else:
-                print("Error: No streams?!.")
+                print("Error: No streams available.")
         else:
             print("Error: Could not find a suitable YouTube video.")
 

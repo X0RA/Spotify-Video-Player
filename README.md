@@ -62,3 +62,4 @@ The video player has the following keybindings:
 
 - `f`: Toggle fullscreen mode.
 - `m`: Mute or unmute the player.
+- `space`: Play/Pause toggle
