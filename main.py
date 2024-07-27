@@ -40,7 +40,7 @@ class MyListener:
         search_result = self.youtube_searcher.search(track, rank=True)
         if search_result:
             video_stream, audio_stream, combined_stream = self.youtube_searcher.get_video_streams(search_result['url'])
-            if not combined_stream:
+            if  combined_stream:
                 print("Playing combined stream")
                 media_name = f"{track['artists'][0]} - {track['track']}"
                 self.video_player.play_media(combined_stream, media_name)
@@ -65,7 +65,8 @@ def run_spotify_listener(listener: MyListener):
 
 def main():
     app = QtWidgets.QApplication(sys.argv)
-    video_player = MusicVideoPlayer()
+    spotify_player = SpotifyPlayer()
+    video_player = MusicVideoPlayer(spotify_player)
     video_player.show()
     video_player.resize(640, 480)
     youtube_searcher = YoutubeSearcher()

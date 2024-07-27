@@ -4,14 +4,16 @@ import vlc
 from PyQt5 import QtWidgets, QtGui, QtCore
 from dotenv import load_dotenv
 import time
+from SpotifyPlayer import SpotifyPlayer
 
 class MusicVideoPlayer(QtWidgets.QMainWindow):
     """A music video player using VLC and PyQt5 with support for separate video and audio streams."""
     media_loaded = QtCore.pyqtSignal(str)
     seek_complete = QtCore.pyqtSignal()
 
-    def __init__(self, master=None):
+    def __init__(self, spotify_player=None, master=None):
         super().__init__(master)
+        self.spotify_player = spotify_player
         self._load_settings()
         self._initialize_players()
         self._create_ui()
@@ -71,6 +73,13 @@ class MusicVideoPlayer(QtWidgets.QMainWindow):
         self.shortcut_mute.activated.connect(self.toggle_mute)
         self.shortcut_play_pause = QtWidgets.QShortcut(QtGui.QKeySequence("SPACE"), self)
         self.shortcut_play_pause.activated.connect(self.toggle_play_pause)
+        self.shortcut_toggle_spotify_mute = QtWidgets.QShortcut(QtGui.QKeySequence("S"), self)
+        self.shortcut_toggle_spotify_mute.activated.connect(self.toggle_spotify_mute)
+        self.shortcut_toggle_spotify_mute = QtWidgets.QShortcut(QtGui.QKeySequence("N"), self)
+        self.shortcut_toggle_spotify_mute.activated.connect(self.spotify_player.next_song)
+        self.shortcut_toggle_spotify_mute = QtWidgets.QShortcut(QtGui.QKeySequence("P"), self)
+        self.shortcut_toggle_spotify_mute.activated.connect(self.spotify_player.previous_song)
+        
         
     def _apply_initial_settings(self):
         if self.start_muted:
@@ -86,6 +95,12 @@ class MusicVideoPlayer(QtWidgets.QMainWindow):
         palette = self.videoframe.palette()
         palette.setColor(QtGui.QPalette.Window, QtGui.QColor(0, 0, 0))
         return palette
+
+    def toggle_spotify_mute(self):
+        if hasattr(self, 'spotify_player'):
+            self.spotify_player.toggle_mute()
+        else:
+            print("Spotify player not initialized")
 
     def toggle_play_pause(self):
         if not self.isPaused:
@@ -186,7 +201,7 @@ class MusicVideoPlayer(QtWidgets.QMainWindow):
         else:
             self.pause()
         self.paused_before_seek = None
-        self.synchronize_players()  # Add this line to ensure synchronization after seeking
+        self.synchronize_players()
         self.update_ui()
 
     def toggle_fullscreen(self):

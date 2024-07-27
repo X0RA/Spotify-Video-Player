@@ -1,9 +1,5 @@
 import yt_dlp
-import tempfile
-import os
-import ffmpeg
 from yt_dlp.utils import DownloadError
-import json
 
 class YoutubeSearcher:
     YDL_OPTS = {

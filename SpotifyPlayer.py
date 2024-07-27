@@ -17,6 +17,7 @@ class SpotifyPlayer:
         self.currentlyPlaying = None
         self.is_playing = None
         self.listeners = []
+        self.last_audio_volume = None
         self.start_track_updater()
 
     def add_listener(self, listener):
@@ -24,6 +25,51 @@ class SpotifyPlayer:
 
     def remove_listener(self, listener):
         self.listeners.remove(listener)
+
+    def toggle_mute(self):
+        """Toggles mute/unmute on the currently active Spotify device."""
+        try:
+            current_playback = self.sp.current_playback()
+            
+            if not current_playback or not current_playback.get('device'):
+                return
+            
+            current_device = current_playback['device']
+            current_volume = current_device['volume_percent']
+            
+            if current_volume == 0 and (self.last_audio_volume is None or self.last_audio_volume == 0):
+                # User may have set volume to 0, unmute to a default or last known volume
+                new_volume = 50 if self.last_audio_volume is None else self.last_audio_volume
+                self.sp.volume(new_volume)
+                self.notify_listeners('unmute')
+            elif current_volume == 0 and self.last_audio_volume != 0:
+                # If currently muted, unmute to the last known volume
+                self.sp.volume(self.last_audio_volume)
+                self.notify_listeners('unmute')
+            else:
+                # If not muted, mute the audio and save the current volume
+                self.last_audio_volume = current_volume
+                self.sp.volume(0)
+                self.notify_listeners('mute')
+
+        except Exception as e:
+            print(f"Error occurred while trying to toggle mute: {str(e)}")
+
+    def next_song(self):
+        """Skips to the next song in the user's Spotify queue."""
+        try:
+            self.sp.next_track()
+            self.notify_listeners('skip')
+        except Exception as e:
+            print(f"Error occurred while trying to skip to the next song: {str(e)}")
+
+    def previous_song(self):
+        """Skips to the previous song in the user's Spotify queue."""
+        try:
+            self.sp.previous_track()
+            self.notify_listeners('previous')
+        except Exception as e:
+            print(f"Error occurred while trying to skip to the previous song: {str(e)}")
 
     def notify_listeners(self, event_type):
         """
