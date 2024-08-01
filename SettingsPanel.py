@@ -79,6 +79,16 @@ def get_settings():
         print(f"Error parsing JSON: {e}")
     return {}
 
+@staticmethod
+def cache_location():
+    try:
+        cache_path = os.path.join(user_data_dir("spotify-video-player"), '.spotify_cache')
+        os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+        return cache_path
+    except (OSError, IOError) as e:
+        print(f"Error creating cache directory: {e}")
+        return None
+
 def show_settings_panel(parent=None):
     dialog = SettingsPanel(parent)
     result = dialog.exec_()

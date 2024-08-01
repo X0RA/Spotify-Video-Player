@@ -121,6 +121,8 @@ class YoutubeSearcher:
         try:
             results = self.ydl.extract_info(query, download=False)
             valid_entries = [r for r in results.get('entries', []) if r.get('title') and r.get('uploader')]
+            # strip all the entries that have a url that starts with https://www.youtube.com/shorts/
+            valid_entries = [r for r in valid_entries if not r.get('url', '').startswith('https://www.youtube.com/shorts/')]
 
             if not valid_entries:
                 print("No suitable videos found.")

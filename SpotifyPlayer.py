@@ -3,7 +3,7 @@ import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 import threading
 import time
-from SettingsPanel import get_settings
+from SettingsPanel import get_settings, cache_location
 
 class SpotifyPlayer:
     """ Manages interaction with the Spotify API, tracks currently playing songs,and notifies listeners about changes in playback state."""
@@ -12,8 +12,9 @@ class SpotifyPlayer:
         cid = settings.get('CLIENT_ID', '')
         csecret = settings.get('CLIENT_SECRET', '')
         self.refresh_timeout = float(settings.get('REFRESH_TIMEOUT', 1))
+        self.cache_path = cache_location()
         scope = "user-read-currently-playing user-read-playback-state user-modify-playback-state user-library-read user-library-modify"
-        self.sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=cid, client_secret=csecret, redirect_uri="http://localhost:8990/callback", scope=scope))
+        self.sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=cid, client_secret=csecret, redirect_uri="http://localhost:8990/callback", scope=scope, cache_path=self.cache_path))
         self.currentlyPlaying = None
         self.is_playing = None
         self.listeners = []
