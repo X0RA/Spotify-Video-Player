@@ -1,17 +1,17 @@
-from dotenv import load_dotenv
 import os
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 import threading
 import time
+from SettingsPanel import get_settings
 
 class SpotifyPlayer:
     """ Manages interaction with the Spotify API, tracks currently playing songs,and notifies listeners about changes in playback state."""
     def __init__(self):
-        load_dotenv()
-        cid = os.getenv('CLIENT_ID')
-        csecret = os.getenv('CLIENT_SECRET')
-        self.refresh_timeout = float(os.getenv('REFRESH_TIMEOUT', 1))
+        settings = get_settings()
+        cid = settings.get('CLIENT_ID', '')
+        csecret = settings.get('CLIENT_SECRET', '')
+        self.refresh_timeout = float(settings.get('REFRESH_TIMEOUT', 1))
         scope = "user-read-currently-playing user-read-playback-state user-modify-playback-state user-library-read user-library-modify"
         self.sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=cid, client_secret=csecret, redirect_uri="http://localhost:8990/callback", scope=scope))
         self.currentlyPlaying = None
@@ -96,7 +96,7 @@ class SpotifyPlayer:
                 "track_id": track['item']['id']
             }
         return None
-    
+
     def did_scrub(self, track_update):
         """Determines if the user has scrubbed through the track."""
         current_time = time.time()
@@ -122,8 +122,6 @@ class SpotifyPlayer:
             return True
         else:
             return False
-
-        
 
     def update_currently_playing(self):
         """Continuously monitors the currently playing track and notifies listeners of changes."""

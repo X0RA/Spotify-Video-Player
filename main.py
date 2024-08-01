@@ -5,6 +5,10 @@ from PyQt5 import QtWidgets, QtCore
 from SpotifyPlayer import SpotifyPlayer
 from YoutubeSearcher import YoutubeSearcher
 from VideoPlayer import MusicVideoPlayer
+import os
+from SettingsPanel import show_settings_panel, get_settings
+
+
 
 class MyListener:
     def __init__(self, youtube_searcher: YoutubeSearcher, video_player: MusicVideoPlayer):
@@ -65,6 +69,10 @@ def run_spotify_listener(listener: MyListener):
 
 def main():
     app = QtWidgets.QApplication(sys.argv)
+    
+    if get_settings() == {}:
+        show_settings_panel()
+        
     spotify_player = SpotifyPlayer()
     video_player = MusicVideoPlayer(spotify_player)
     video_player.show()

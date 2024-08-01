@@ -2,9 +2,10 @@ import sys
 import os
 import vlc
 from PyQt5 import QtWidgets, QtGui, QtCore
-from dotenv import load_dotenv
 import time
 from SpotifyPlayer import SpotifyPlayer
+from SettingsPanel import show_settings_panel, get_settings
+
 
 class MusicVideoPlayer(QtWidgets.QMainWindow):
     """A music video player using VLC and PyQt5 with support for separate video and audio streams."""
@@ -22,9 +23,10 @@ class MusicVideoPlayer(QtWidgets.QMainWindow):
         self.is_seeking = False
 
     def _load_settings(self):
-        load_dotenv()
-        self.start_muted = os.getenv('START_MUTED', 'False').lower() in ('true', '1', 't')
-        self.start_fullscreen = os.getenv('START_FULLSCREEN', 'False').lower() in ('true', '1', 't')
+        settings = get_settings()
+        self.start_muted = settings.get('START_MUTED', True)
+        self.start_fullscreen = settings.get('START_FULLSCREEN', False)
+        
 
     def _initialize_players(self):
         self.instance = vlc.Instance('--no-xlib')
@@ -79,7 +81,13 @@ class MusicVideoPlayer(QtWidgets.QMainWindow):
         self.shortcut_toggle_spotify_mute.activated.connect(self.spotify_player.next_song)
         self.shortcut_toggle_spotify_mute = QtWidgets.QShortcut(QtGui.QKeySequence("P"), self)
         self.shortcut_toggle_spotify_mute.activated.connect(self.spotify_player.previous_song)
+        self.shortcut_settings = QtWidgets.QShortcut(QtGui.QKeySequence("H"), self)
+        self.shortcut_settings.activated.connect(self.show_settings)
         
+    def show_settings(self):
+        if show_settings_panel(self):
+            self._load_settings()
+            self._apply_settings()
         
     def _apply_initial_settings(self):
         if self.start_muted:
@@ -169,7 +177,6 @@ class MusicVideoPlayer(QtWidgets.QMainWindow):
             QtCore.QTimer.singleShot(200, self._check_seek_complete)
         else:
             print("Error: No media loaded.")
-
 
     def _check_seek_complete(self):
         current_video_time = self.video_player.get_time()
