@@ -7,19 +7,24 @@ The Spotify Video Player is a tool that allows you to sync and play videos based
 ## Getting Started
 To get started, you'll need to set up your environment and configure the player.
 
-### Environment Configuration
-Within the .env file you'll find some config options and required api creds.
+### Settings
+The Spotify Video Player uses settings to store user preferences and API credentials. These settings are stored in a JSON file located in the user's data directory. The settings panel will show up on the first run of the application and can subsequently be opened with `h` on the video player.
 
-#### Spotify
-Add your Spotify API credentials to the .env file. This includes **CLIENT_ID**, **CLIENT_SECRET**.
+#### Location of Settings File
+The settings file is stored in a platform-specific user data directory:
 
-#### Player Settings:
-**START_MUTED**: Set this flag to True if you want the player to start muted by default, otherwise set it to False.
+On Windows: `C:\Users\<Username>\AppData\Local\spotify-video-player\settings.json`
+On macOS: `/Users/<Username>/Library/Application Support/spotify-video-player/settings.json`
+On Linux: `/home/<Username>/.local/share/spotify-video-player/settings.json`
 
-**SYNC_PLAYBACK**: Set this flag to True to keep the player in sync with your Spotify playback. If you prefer to play videos as just 'something to glance at' without worrying about synchronization, set it to False. Also you might not get the video you want who knows.
+#### Spotify API Credentials
+To use this application, you need to obtain Spotify API credentials:
 
-**START_FULLSCREEN**: Set this flag to True if you want the player to start in fullscreen mode.~~
-- Doesn't work on osx for some reason idk
+Go to https://developer.spotify.com/dashboard/
+Log in with your Spotify account (or create one if you don't have it)
+Click on "Create an App"
+Fill in the app name and description
+Once created, you'll see your Client ID and you can click "Show Client Secret" to reveal your Client Secret
 
 ### Installation
 
@@ -71,6 +76,7 @@ The video player has the following keybindings:
 - `s`: Toggle mute on spotify
 - `n`: Next song on spotify
 - `p`: Previous song on spotify
+- `h`: Open the settings panel
 
 
 ## TODO
@@ -78,4 +84,3 @@ The video player has the following keybindings:
 - More controls on the player (maybe some cool hover ones)
 - Option to sync up with spotify right after the video loads
 - Fix some of the seeking issues
-- Better search algorithm

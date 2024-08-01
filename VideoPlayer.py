@@ -87,7 +87,6 @@ class MusicVideoPlayer(QtWidgets.QMainWindow):
     def show_settings(self):
         if show_settings_panel(self):
             self._load_settings()
-            self._apply_settings()
         
     def _apply_initial_settings(self):
         if self.start_muted:
